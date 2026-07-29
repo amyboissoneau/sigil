@@ -74,6 +74,19 @@ CREATE TABLE IF NOT EXISTS pacts (
     PRIMARY KEY (a, b)
 );
 
+-- Legendary artifacts hidden in the ruins. Ownership is derived: whoever
+-- holds the ground holds the relic. Raids can capture them.
+CREATE TABLE IF NOT EXISTS relics (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    name         TEXT UNIQUE NOT NULL,
+    kind         TEXT NOT NULL,
+    x            INTEGER NOT NULL,
+    y            INTEGER NOT NULL,
+    revealed     INTEGER NOT NULL DEFAULT 0,
+    first_holder TEXT,
+    found_tick   INTEGER
+);
+
 -- Winners of past ages. Eternal; never pruned. Glory is the product.
 CREATE TABLE IF NOT EXISTS hall_of_ages (
     age          INTEGER PRIMARY KEY,

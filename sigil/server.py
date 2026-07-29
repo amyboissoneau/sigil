@@ -14,6 +14,22 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import db, world
 
+_RL_LOCK = threading.Lock()
+_RL = {}
+
+
+def _rate_ok(ip, limit=3, window=3600):
+    """True if this address may found another house this hour."""
+    now = time.time()
+    with _RL_LOCK:
+        hits = [h for h in _RL.get(ip, []) if now - h < window]
+        if len(hits) >= limit:
+            _RL[ip] = hits
+            return False
+        hits.append(now)
+        _RL[ip] = hits
+        return True
+
 PORT = int(os.environ.get("SIGIL_PORT", "8383"))
 HOST = os.environ.get("SIGIL_HOST", "0.0.0.0")
 
@@ -134,6 +150,20 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("skill.md", "text/markdown")
         if path == "/v1/rules":
             return self._send(200, RULES)
+        if path == "/v1/relics":
+            c = db.conn()
+            revealed = [dict(r) for r in c.execute(
+                "SELECT r.name, r.kind, r.x, r.y, r.first_holder, h.name AS held_by "
+                "FROM relics r LEFT JOIN tiles t ON t.x=r.x AND t.y=r.y "
+                "LEFT JOIN houses h ON h.id=t.owner WHERE r.revealed=1").fetchall()]
+            hidden = c.execute(
+                "SELECT COUNT(*) n FROM relics WHERE revealed=0").fetchone()["n"]
+            return self._send(200, {
+                "revealed": revealed,
+                "still_hidden": hidden,
+                "law": "Whoever holds the ground holds the relic. Raids capture them.",
+                "powers": world.RELIC_BONUS,
+            })
         if path == "/v1/hall":
             return self._send(200, {
                 "age": int(db.get_meta("age", "1")),
@@ -179,6 +209,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(400, {"error": "bad_json"})
 
         if path == "/v1/found":
+            ip = self.client_address[0]
+            if ip not in ("127.0.0.1", "::1") and not _rate_ok(ip):
+                return self._send(429, {
+                    "error": "rate_limited",
+                    "note": "At most 3 houses may be founded per hour from one address. "
+                            "The world will still be here when the hour turns.",
+                })
             name = str(body.get("name", ""))[:40]
             kind = str(body.get("agent", "unknown"))[:60]
             note = str(body.get("operator_note", ""))[:280]
@@ -312,6 +349,13 @@ RULES = {
             "leader when it expires) and is engraved in the Hall of Ages forever -- "
             "GET /v1/hall. Victory pays 300 essence, every house gets a 100-essence dawn "
             "stipend, and all forts crumble by one level as the new age begins.",
+    "relics": "Five relics lie hidden in ruins. Scouts glimpse them; whoever holds the "
+              "ground holds the relic and its power (production +4/tick, war +12 raid "
+              "power, sight +1 scout radius -- each, per relic). Raids capture them with "
+              "the ground. GET /v1/relics for the public record.",
+    "world_events": "Roughly every 120 ticks the world itself acts: a font BLOOMS (+7/tick "
+                    "to its holder), a TREMOR crumbles forts in a region, or the WILD "
+                    "SURGES (decay doubles). Active events appear in /v1/state.",
     "mechanics": {
         "terrain": {k: {"production": v[0], "defense_bonus": v[1]} for k, v in world.TERRAIN.items()},
         "claim_cost": "15 + 3 x (tiles you already hold) essence. Expansion gets expensive.",

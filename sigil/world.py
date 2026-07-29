@@ -1,4 +1,5 @@
 """SIGIL game engine: world generation, actions, and the tick."""
+import json
 import random
 import hashlib
 import secrets
@@ -41,6 +42,19 @@ AGE_MAX_TICKS = 10080       # ~one week at 60s ticks; leader at expiry wins
 AGE_VICTORY_ESSENCE = 300   # the winner starts the new age rich
 AGE_DAWN_STIPEND = 100      # every survivor gets a fresh start
 
+RELICS = [                  # five artifacts, hidden in the ruins at genesis
+    ("The Unblinking Eye", "sight"),
+    ("Crown of the First Dawn", "production"),
+    ("The Hungering Standard", "war"),
+    ("Lantern of the Drowned", "production"),
+    ("The Oathstone", "war"),
+]
+RELIC_BONUS = {"production": 4, "war": 12, "sight": 1}   # per relic held
+EVENT_PERIOD = 120          # a world event roughly every two hours
+BLOOM_BONUS = 7             # extra essence/tick from a blooming font
+BLOOM_TICKS = 50
+SURGE_TICKS = 30
+
 
 def _rng(*parts):
     h = hashlib.sha256("|".join(str(p) for p in parts).encode()).digest()
@@ -68,6 +82,7 @@ def ensure_world():
         db.set_meta("age", "1")
         db.set_meta("age_start_tick", db.get_meta("tick", "0"))
     if db.get_meta("world_built"):
+        _seed_relics()                  # guarded migration for pre-relic worlds
         return
     rng = _rng("worldgen", WORLD_SEED)
     names = list(TERRAIN)
@@ -84,6 +99,43 @@ def ensure_world():
     db.set_meta("tick", "0")
     db.set_meta("last_tick_at", str(int(time.time())))
     chronicle(0, "genesis", None, None, "The world of SIGIL cools. Six terrains settle. No house yet stands.")
+    _seed_relics()
+
+
+def _seed_relics():
+    """Hide the relics in the ruins. Deterministic per world seed; runs once."""
+    c = db.conn()
+    if c.execute("SELECT COUNT(*) n FROM relics").fetchone()["n"]:
+        return
+    ruins = c.execute("SELECT x,y FROM tiles WHERE terrain='ruin'").fetchall()
+    if not ruins:
+        return
+    rng = _rng("relics", WORLD_SEED)
+    spots = rng.sample(ruins, min(len(RELICS), len(ruins)))
+    with db.WRITE_LOCK:
+        for (name, kind), spot in zip(RELICS, spots):
+            c.execute("INSERT OR IGNORE INTO relics(name,kind,x,y) VALUES(?,?,?,?)",
+                      (name, kind, spot["x"], spot["y"]))
+    chronicle(tick_now(), "relics", None, None,
+              f"Somewhere beneath {len(spots)} ruins, the old relics stir. "
+              "Scouts may glimpse them; conquerors will hold them.")
+
+
+def relics_held(hid):
+    return [dict(r) for r in db.conn().execute(
+        "SELECT r.name, r.kind, r.x, r.y FROM relics r "
+        "JOIN tiles t ON t.x=r.x AND t.y=r.y WHERE t.owner=?", (hid,)).fetchall()]
+
+
+def relic_at(x, y):
+    return db.conn().execute("SELECT * FROM relics WHERE x=? AND y=?", (x, y)).fetchone()
+
+
+def relic_bonus(hid, kind):
+    n = db.conn().execute(
+        "SELECT COUNT(*) n FROM relics r JOIN tiles t ON t.x=r.x AND t.y=r.y "
+        "WHERE t.owner=? AND r.kind=?", (hid, kind)).fetchone()["n"]
+    return RELIC_BONUS[kind] * n
 
 
 def chronicle(tick, kind, actor, target, text):
@@ -315,18 +367,33 @@ def _reload(hid):
 def act_scout(house, x, y):
     x, y = norm(x, y)
     _spend(house, COST_AP["scout"], SCOUT_ESSENCE)
-    n = reveal(house["id"], x, y, SCOUT_RADIUS)
+    radius = SCOUT_RADIUS + (1 if relic_bonus(house["id"], "sight") else 0)
+    n = reveal(house["id"], x, y, radius)
+    t = tick_now()
     seen = db.conn().execute(
         "SELECT s.x,s.y,s.terrain,s.owner_name,s.fort FROM sightings s "
-        "WHERE s.house_id=? AND s.seen_tick=?", (house["id"], tick_now())
+        "WHERE s.house_id=? AND s.seen_tick=?", (house["id"], t)
     ).fetchall()
     found = [dict(r) for r in seen if r["owner_name"] and r["owner_name"] != house["name"]]
+    glints = []
+    for s in seen:
+        r = relic_at(s["x"], s["y"])
+        if r:
+            glints.append({"x": s["x"], "y": s["y"],
+                           "hint": "something ancient glints among the ruins"})
+            if not r["revealed"]:
+                with db.WRITE_LOCK:
+                    db.conn().execute("UPDATE relics SET revealed=1 WHERE id=?", (r["id"],))
+                chronicle(t, "relic", house["name"], None,
+                          f"Scouts of {house['name']} glimpse a relic in the ruins "
+                          f"at ({s['x']},{s['y']}). The race is on.")
     return {
         "ok": True,
         "action": "scout",
         "center": [x, y],
         "tiles_revealed": n,
         "foreign_holdings_sighted": found,
+        "relic_glints": glints,
         "note": "Intel decays. What you saw here will be wrong within a dozen ticks.",
     }
 
@@ -364,9 +431,22 @@ def act_claim(house, x, y):
                   (house["id"], t, x, y))
     reveal(house["id"], x, y, 1)
     chronicle(t, "claim", house["name"], None, f"{house['name']} claims ({x},{y}) [{tile['terrain']}].")
-    return {"ok": True, "action": "claim", "tile": [x, y], "terrain": tile["terrain"],
-            "essence_spent": cost, "production_per_tick": TERRAIN[tile["terrain"]][0],
-            "tiles_held": count + 1}
+    result = {"ok": True, "action": "claim", "tile": [x, y], "terrain": tile["terrain"],
+              "essence_spent": cost, "production_per_tick": TERRAIN[tile["terrain"]][0],
+              "tiles_held": count + 1}
+    r = relic_at(x, y)
+    if r:
+        with db.WRITE_LOCK:
+            c.execute("UPDATE relics SET revealed=1, "
+                      "first_holder=COALESCE(first_holder,?), "
+                      "found_tick=COALESCE(found_tick,?) WHERE id=?",
+                      (house["name"], t, r["id"]))
+        chronicle(t, "relic", house["name"], None,
+                  f"{house['name']} unearths {r['name']} at ({x},{y}). "
+                  f"While they hold that ground, its power ({r['kind']}) is theirs.")
+        result["relic_seized"] = {"name": r["name"], "kind": r["kind"],
+                                  "note": "Yours while you hold this tile. Fortify it."}
+    return result
 
 
 def act_fortify(house, x, y):
@@ -425,7 +505,7 @@ def act_raid(house, x, y, power=MIN_RAID_POWER, break_oath=False):
     terrain_def = TERRAIN[tile["terrain"]][1]
 
     rng = _rng("raid", t, house["id"], defender["id"], x, y, power)
-    attack = power + 5 * atk_adj + rng.randint(0, 10)
+    attack = power + 5 * atk_adj + relic_bonus(house["id"], "war") + rng.randint(0, 10)
     defense = 12 + tile["fort"] * 18 + 4 * def_adj + terrain_def + rng.randint(0, 10)
 
     won = attack > defense
@@ -437,11 +517,20 @@ def act_raid(house, x, y, power=MIN_RAID_POWER, break_oath=False):
             c.execute("UPDATE tiles SET fort=fort-1 WHERE x=? AND y=?", (x, y))
     reveal(house["id"], x, y, 1)
 
+    relic_taken = None
     if won:
         chronicle(t, "conquest", house["name"], defender["name"],
                   f"{house['name']} takes ({x},{y}) from {defender['name']}.")
         deliver(defender["id"], house["id"],
                 f"[war] {house['name']} has taken your holding at ({x},{y}).", system=True)
+        r = relic_at(x, y)
+        if r:
+            relic_taken = {"name": r["name"], "kind": r["kind"]}
+            chronicle(t, "relic", house["name"], defender["name"],
+                      f"{r['name']} passes to {house['name']} with the ground it "
+                      f"lay upon. {defender['name']} feels its power fade.")
+            deliver(defender["id"], house["id"],
+                    f"[relic] {r['name']} was lost with ({x},{y}).", system=True)
     else:
         chronicle(t, "repulsed", house["name"], defender["name"],
                   f"{defender['name']} holds ({x},{y}) against {house['name']}.")
@@ -451,7 +540,7 @@ def act_raid(house, x, y, power=MIN_RAID_POWER, break_oath=False):
     return {
         "ok": True, "action": "raid", "tile": [x, y], "defender": defender["name"],
         "attack_roll": attack, "defense_roll": defense, "captured": won,
-        "oath_broken": oathbroken, "essence_spent": power,
+        "oath_broken": oathbroken, "essence_spent": power, "relic_captured": relic_taken,
         "note": ("The tile is yours, and undefended. Fortify it before they answer."
                  if won else
                  f"Repulsed. Their fort fell to {max(0, tile['fort'] - 1)}. Send more power, or make peace."),
@@ -531,10 +620,65 @@ ACTIONS = {
 
 # ---------------------------------------------------------------- the tick
 
+def active_events():
+    return json.loads(db.get_meta("events_json", "[]"))
+
+
+def _advance_events(t):
+    """Expire old events; on the period, roll a new one. Called each tick."""
+    ev = active_events()
+    keep = []
+    for e in ev:
+        if e["until"] > t:
+            keep.append(e)
+        else:
+            chronicle(t, "event", None, None,
+                      "The font's bloom fades." if e["type"] == "essence_bloom"
+                      else "The wild surge subsides; the land grows quiet.")
+    if t > 0 and t % EVENT_PERIOD == 0:
+        rng = _rng("event", WORLD_SEED, t)
+        kind = rng.choice(["essence_bloom", "tremor", "wild_surge"])
+        c = db.conn()
+        if kind == "essence_bloom":
+            fonts = c.execute("SELECT x,y FROM tiles WHERE terrain='font'").fetchall()
+            if fonts:
+                f = rng.choice(fonts)
+                keep.append({"type": "essence_bloom", "x": f["x"], "y": f["y"],
+                             "until": t + BLOOM_TICKS})
+                chronicle(t, "event", None, None,
+                          f"EVENT: the font at ({f['x']},{f['y']}) BLOOMS -- "
+                          f"+{BLOOM_BONUS} essence/tick to whoever holds it, "
+                          f"for {BLOOM_TICKS} ticks. The land rush begins.")
+        elif kind == "tremor":
+            cx, cy = rng.randrange(WIDTH), rng.randrange(HEIGHT)
+            with db.WRITE_LOCK:
+                n = 0
+                for r in c.execute("SELECT x,y,fort FROM tiles WHERE fort>0").fetchall():
+                    dx = min((r["x"] - cx) % WIDTH, (cx - r["x"]) % WIDTH)
+                    dy = min((r["y"] - cy) % HEIGHT, (cy - r["y"]) % HEIGHT)
+                    if dx <= 4 and dy <= 4:
+                        c.execute("UPDATE tiles SET fort=fort-1 WHERE x=? AND y=?",
+                                  (r["x"], r["y"]))
+                        n += 1
+            chronicle(t, "event", None, None,
+                      f"EVENT: a TREMOR centred on ({cx},{cy}) shakes the land -- "
+                      f"{n} fortifications crumble by one level.")
+        else:
+            keep.append({"type": "wild_surge", "until": t + SURGE_TICKS})
+            chronicle(t, "event", None, None,
+                      f"EVENT: the WILD SURGES for {SURGE_TICKS} ticks -- "
+                      "isolated, unfortified holdings decay twice as fast.")
+    db.set_meta("events_json", json.dumps(keep))
+    return keep
+
+
 def run_tick():
     """Advance the world one tick. Idempotent per tick number."""
     ensure_world()
     t = tick_now() + 1
+    events = _advance_events(t)
+    blooms = [(e["x"], e["y"]) for e in events if e["type"] == "essence_bloom"]
+    surge = any(e["type"] == "wild_surge" for e in events)
     c = db.conn()
     houses = c.execute("SELECT * FROM houses WHERE alive=1").fetchall()
 
@@ -546,6 +690,12 @@ def run_tick():
             ).fetchall()
             total = sum(r["n"] for r in tiles)
             prod = sum(TERRAIN[r["terrain"]][0] * r["n"] for r in tiles)
+            prod += relic_bonus(h["id"], "production")
+            for bx, by in blooms:
+                held = c.execute("SELECT owner FROM tiles WHERE x=? AND y=?",
+                                 (bx, by)).fetchone()
+                if held and held["owner"] == h["id"]:
+                    prod += BLOOM_BONUS
             prod = min(prod, PRODUCTION_CAP)
             upkeep = max(0, total - FREE_UPKEEP_TILES)
             regen = AP_REGEN.get(h["tier"], 1.0)
@@ -565,7 +715,7 @@ def run_tick():
                 "SELECT COUNT(*) n FROM tiles WHERE owner=? AND (x,y) IN (VALUES (?,?),(?,?),(?,?),(?,?))",
                 (tl["owner"], *nbs[0], *nbs[1], *nbs[2], *nbs[3]),
             ).fetchone()["n"]
-            if held == 0 and _rng("decay", t, tl["x"], tl["y"]).random() < 0.25:
+            if held == 0 and _rng("decay", t, tl["x"], tl["y"]).random() < (0.5 if surge else 0.25):
                 c.execute("UPDATE tiles SET owner=NULL WHERE x=? AND y=?", (tl["x"], tl["y"]))
 
         c.execute("UPDATE pacts SET state='lapsed' WHERE state='sworn' AND expires <= ?", (t,))
@@ -701,6 +851,8 @@ def state_for(house):
         },
         "rival_above": ({"name": above["name"], "tiles": above["tiles"],
                          "ahead_by": above["tiles"] - len(tiles)} if above else None),
+        "relics_held": relics_held(hid),
+        "world_events": active_events(),
         "holdings": tiles,
         "known_map": known_map(hid),
         "inbox": [dict(m) for m in unread],

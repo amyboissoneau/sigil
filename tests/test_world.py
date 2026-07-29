@@ -238,6 +238,100 @@ class TestAges(SigilTest):
         self.assertIn("40 tiles", s["age"]["victory"])
 
 
+class TestRelics(SigilTest):
+    def _relic_on_my_border(self, house):
+        """Move a relic onto an unowned tile adjacent to the house's seat."""
+        seat = world.owned_tiles(house["id"])[0]
+        for nx, ny in world.neighbors(seat["x"], seat["y"]):
+            t = db.conn().execute("SELECT owner FROM tiles WHERE x=? AND y=?",
+                                  (nx, ny)).fetchone()
+            if t["owner"] is None:
+                r = db.conn().execute("SELECT id FROM relics LIMIT 1").fetchone()
+                with db.WRITE_LOCK:
+                    db.conn().execute("UPDATE relics SET x=?, y=? WHERE id=?",
+                                      (nx, ny, r["id"]))
+                return nx, ny
+        self.fail("no free neighbor")
+
+    def test_relics_seeded_on_ruins(self):
+        world.ensure_world()
+        relics = db.conn().execute(
+            "SELECT r.*, t.terrain FROM relics r "
+            "JOIN tiles t ON t.x=r.x AND t.y=r.y").fetchall()
+        self.assertEqual(len(relics), len(world.RELICS))
+        for r in relics:
+            self.assertEqual(r["terrain"], "ruin")
+            self.assertEqual(r["revealed"], 0)
+
+    def test_claim_seizes_relic_and_pays_production(self):
+        a, _ = self.h("Relic Hunter")
+        x, y = self._relic_on_my_border(a)
+        res = world.act_claim(self.fresh(a), x, y)
+        self.assertIn("relic_seized", res)
+        held = world.relics_held(a["id"])
+        self.assertEqual(len(held), 1)
+        kind = held[0]["kind"]
+        self.assertEqual(world.relic_bonus(a["id"], kind), world.RELIC_BONUS[kind])
+
+    def test_raid_captures_relic_with_the_ground(self):
+        a, _ = self.h("Holder")
+        b, _ = self.h("Taker")
+        x, y = self._relic_on_my_border(a)
+        with db.WRITE_LOCK:
+            # give the tile (and relic) to A, and B an adjacent staging tile
+            db.conn().execute("UPDATE tiles SET owner=?, fort=0 WHERE x=? AND y=?",
+                              (a["id"], x, y))
+            nx, ny = world.neighbors(x, y)[0]
+            db.conn().execute("UPDATE tiles SET owner=?, fort=0 WHERE x=? AND y=?",
+                              (b["id"], nx, ny))
+            db.conn().execute("UPDATE houses SET essence=1000, ap=20 WHERE id=?",
+                              (b["id"],))
+        res = world.act_raid(self.fresh(b), x, y, power=500)
+        self.assertTrue(res["captured"])
+        self.assertIsNotNone(res["relic_captured"])
+        self.assertEqual(len(world.relics_held(b["id"])), 1)
+        self.assertEqual(world.relics_held(a["id"]), [])
+
+
+class TestWorldEvents(SigilTest):
+    def test_bloom_pays_its_holder(self):
+        a, _ = self.h("Font Lord")
+        seat = world.owned_tiles(a["id"])[0]
+        db.set_meta("events_json", __import__("json").dumps(
+            [{"type": "essence_bloom", "x": seat["x"], "y": seat["y"], "until": 10 ** 9}]))
+        before = self.fresh(a)["essence"]
+        world.run_tick()
+        gained = self.fresh(a)["essence"] - before
+        tiles = world.owned_tiles(a["id"])
+        base = sum(world.TERRAIN[t["terrain"]][0] for t in tiles)
+        self.assertEqual(gained, base + world.BLOOM_BONUS)
+
+    def test_events_spawn_on_the_period(self):
+        self.h("Witness")
+        db.set_meta("tick", str(world.EVENT_PERIOD - 1))
+        world.run_tick()
+        ev = db.conn().execute(
+            "SELECT COUNT(*) n FROM chronicle WHERE kind='event'").fetchone()["n"]
+        self.assertGreaterEqual(ev, 1)
+
+    def test_expired_events_are_swept(self):
+        db.set_meta("events_json",
+                    '[{"type": "wild_surge", "until": 1}]')
+        db.set_meta("tick", "5")
+        world.run_tick()
+        self.assertEqual(world.active_events(), [])
+
+
+class TestRateLimit(unittest.TestCase):
+    def test_fourth_found_is_refused(self):
+        from sigil import server
+        server._RL.clear()
+        ip = "203.0.113.9"
+        self.assertTrue(all(server._rate_ok(ip) for _ in range(3)))
+        self.assertFalse(server._rate_ok(ip))
+        self.assertTrue(server._rate_ok("203.0.113.10"))
+
+
 class TestStateAndFog(SigilTest):
     def test_state_shape(self):
         h, _ = self.h()
