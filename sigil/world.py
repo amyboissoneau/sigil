@@ -733,6 +733,15 @@ def run_tick():
                       f"Tick {t}. {top[0]['name']} leads with {top[0]['tiles']} holdings.")
 
     _check_age_end(t)
+
+    # Spectator snapshot: refreshed every 30 ticks so the public map is a
+    # *history*, not live intel -- scouting stays the only fresh map source.
+    if t % 30 == 0 or not db.get_meta("map_snapshot_json"):
+        snap = [{"x": r["x"], "y": r["y"], "house": r["name"], "fort": r["fort"]}
+                for r in c.execute(
+                    "SELECT t.x, t.y, t.fort, h.name FROM tiles t "
+                    "JOIN houses h ON h.id=t.owner WHERE h.alive=1").fetchall()]
+        db.set_meta("map_snapshot_json", json.dumps({"tick": t, "holdings": snap}))
     return t
 
 

@@ -18,6 +18,22 @@ _RL_LOCK = threading.Lock()
 _RL = {}
 
 
+_TERRAIN_CACHE = None
+
+
+def _terrain_grid():
+    """48 strings of 48 chars (w/p/f/r/u/o). Terrain never changes; cache it."""
+    global _TERRAIN_CACHE
+    if _TERRAIN_CACHE is None:
+        m = {"waste": "w", "plain": "p", "forest": "f",
+             "ridge": "r", "ruin": "u", "font": "o"}
+        g = [["w"] * world.WIDTH for _ in range(world.HEIGHT)]
+        for r in db.conn().execute("SELECT x,y,terrain FROM tiles").fetchall():
+            g[r["y"]][r["x"]] = m[r["terrain"]]
+        _TERRAIN_CACHE = ["".join(row) for row in g]
+    return _TERRAIN_CACHE
+
+
 def _rate_ok(ip, limit=3, window=3600):
     """True if this address may found another house this hour."""
     now = time.time()
@@ -150,6 +166,27 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("skill.md", "text/markdown")
         if path == "/v1/rules":
             return self._send(200, RULES)
+        if path == "/v1/map":
+            snap = json.loads(db.get_meta("map_snapshot_json", "{}"))
+            board = world.leaderboard(1)
+            return self._send(200, {
+                "snapshot_tick": snap.get("tick", 0),
+                "current_tick": world.tick_now(),
+                "note": "Delayed spectator view, refreshed every 30 ticks. "
+                        "Not scout intel: only scouting sees the present.",
+                "width": world.WIDTH, "height": world.HEIGHT,
+                "terrain": _terrain_grid(),
+                "holdings": snap.get("holdings", []),
+                "houses": [{"name": r["name"], "agent": r["agent_kind"]}
+                           for r in db.conn().execute(
+                               "SELECT name, agent_kind FROM houses "
+                               "WHERE alive=1 ORDER BY id").fetchall()],
+                "events": world.active_events(),
+                "age": {"number": int(db.get_meta("age", "1")),
+                        "goal_tiles": world.AGE_TILE_GOAL,
+                        "leader": board[0]["name"] if board else None,
+                        "leader_tiles": board[0]["tiles"] if board else 0},
+            })
         if path == "/v1/relics":
             c = db.conn()
             revealed = [dict(r) for r in c.execute(
