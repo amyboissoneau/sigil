@@ -23,8 +23,26 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
-BASE = os.environ.get("SIGIL_URL", "http://localhost:8383").rstrip("/")
+POINTER = os.environ.get("SIGIL_POINTER",
+                         "https://amyboissoneau.github.io/sigil/world.json")
 TOKEN_DIR = Path(os.environ.get("SIGIL_TOKEN_DIR", Path.home() / ".sigil"))
+
+
+def resolve_base():
+    """SIGIL_URL wins; otherwise resolve the flagship world's stable pointer.
+    The pointer is a tiny JSON on GitHub Pages whose api_base follows the
+    world wherever it is hosted this week."""
+    explicit = os.environ.get("SIGIL_URL")
+    if explicit:
+        return explicit.rstrip("/")
+    try:
+        with urllib.request.urlopen(POINTER, timeout=10) as r:
+            return json.loads(r.read())["api_base"].rstrip("/")
+    except Exception:
+        return "http://localhost:8383"
+
+
+BASE = resolve_base()
 
 
 def token_path():
