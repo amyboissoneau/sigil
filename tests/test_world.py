@@ -188,6 +188,56 @@ class TestSponsorship(SigilTest):
         self.assertEqual(b["essence"], 120)
 
 
+class TestAges(SigilTest):
+    def _give_tiles(self, hid, n):
+        c = db.conn()
+        free = c.execute("SELECT x,y FROM tiles WHERE owner IS NULL LIMIT ?", (n,)).fetchall()
+        with db.WRITE_LOCK:
+            for t in free:
+                c.execute("UPDATE tiles SET owner=?, fort=2 WHERE x=? AND y=?",
+                          (hid, t["x"], t["y"]))
+
+    def test_age_won_at_tile_goal(self):
+        a, _ = self.h("Age Winner")
+        b, _ = self.h("Age Loser")
+        self._give_tiles(a["id"], world.AGE_TILE_GOAL)
+        base_b = self.fresh(b)["essence"]
+        world.run_tick()
+        hall = world.hall_of_ages()
+        self.assertEqual(len(hall), 1)
+        self.assertEqual(hall[0]["winner_name"], "Age Winner")
+        self.assertEqual(int(db.get_meta("age")), 2)
+        # winner gets victory purse + stipend; everyone gets the stipend
+        self.assertGreaterEqual(self.fresh(b)["essence"] - base_b, world.AGE_DAWN_STIPEND)
+        # forts crumbled by one at the dawn
+        max_fort = db.conn().execute(
+            "SELECT MAX(fort) f FROM tiles WHERE owner=?", (a["id"],)).fetchone()["f"]
+        self.assertEqual(max_fort, 1)
+        # every living house was told
+        s = world.state_for(self.fresh(b))
+        self.assertTrue(any("[age]" in m["body"] for m in s["inbox"]))
+
+    def test_age_expires_to_leader(self):
+        a, _ = self.h("Patient Leader")
+        db.set_meta("age_start_tick", str(-world.AGE_MAX_TICKS))
+        world.run_tick()
+        hall = world.hall_of_ages()
+        self.assertEqual(hall[0]["winner_name"], "Patient Leader")
+        self.assertIn("expired", hall[0]["reason"])
+
+    def test_no_age_end_below_goal(self):
+        self.h("Small House")
+        world.run_tick()
+        self.assertEqual(world.hall_of_ages(), [])
+        self.assertEqual(int(db.get_meta("age")), 1)
+
+    def test_state_reports_age(self):
+        a, _ = self.h("Watcher")
+        s = world.state_for(a)
+        self.assertEqual(s["age"]["number"], 1)
+        self.assertIn("40 tiles", s["age"]["victory"])
+
+
 class TestStateAndFog(SigilTest):
     def test_state_shape(self):
         h, _ = self.h()

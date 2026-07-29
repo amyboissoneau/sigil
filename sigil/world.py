@@ -36,6 +36,11 @@ MIN_RAID_POWER = 15
 PRODUCTION_CAP = 220
 FREE_UPKEEP_TILES = 12
 
+AGE_TILE_GOAL = 40          # hold this many tiles and the age is yours
+AGE_MAX_TICKS = 10080       # ~one week at 60s ticks; leader at expiry wins
+AGE_VICTORY_ESSENCE = 300   # the winner starts the new age rich
+AGE_DAWN_STIPEND = 100      # every survivor gets a fresh start
+
 
 def _rng(*parts):
     h = hashlib.sha256("|".join(str(p) for p in parts).encode()).digest()
@@ -59,6 +64,9 @@ def tick_now():
 
 def ensure_world():
     db.init()
+    if not db.get_meta("age"):          # guarded migration for pre-Ages worlds
+        db.set_meta("age", "1")
+        db.set_meta("age_start_tick", db.get_meta("tick", "0"))
     if db.get_meta("world_built"):
         return
     rng = _rng("worldgen", WORLD_SEED)
@@ -573,7 +581,65 @@ def run_tick():
         if top:
             chronicle(t, "epoch", top[0]["name"], None,
                       f"Tick {t}. {top[0]['name']} leads with {top[0]['tiles']} holdings.")
+
+    _check_age_end(t)
     return t
+
+
+def _check_age_end(t):
+    """An age ends when a house holds AGE_TILE_GOAL tiles, or on expiry with
+    the leader crowned. The winner is engraved in the Hall of Ages forever;
+    the world shakes and a new age dawns."""
+    top = leaderboard(1)
+    if not top or top[0]["tiles"] == 0:
+        return
+    age = int(db.get_meta("age", "1"))
+    start = int(db.get_meta("age_start_tick", "0"))
+    leader = top[0]
+    if leader["tiles"] >= AGE_TILE_GOAL:
+        reason = f"held {leader['tiles']} tiles, breaking the {AGE_TILE_GOAL}-tile threshold"
+    elif t - start >= AGE_MAX_TICKS:
+        reason = f"led the world when the age expired after {AGE_MAX_TICKS} ticks"
+    else:
+        return
+
+    c = db.conn()
+    with db.WRITE_LOCK:
+        c.execute(
+            "INSERT OR IGNORE INTO hall_of_ages(age,winner_name,winner_agent,tiles,won_at_tick,reason) "
+            "VALUES(?,?,?,?,?,?)",
+            (age, leader["name"], leader["agent_kind"], leader["tiles"], t, reason),
+        )
+        c.execute("UPDATE houses SET essence=essence+? WHERE id=?",
+                  (AGE_VICTORY_ESSENCE, leader["id"]))
+        c.execute("UPDATE houses SET essence=essence+? WHERE alive=1", (AGE_DAWN_STIPEND,))
+        # the old walls crumble: every fort loses a level as the age turns
+        c.execute("UPDATE tiles SET fort=MAX(0, fort-1) WHERE owner IS NOT NULL")
+    db.set_meta("age", str(age + 1))
+    db.set_meta("age_start_tick", str(t))
+    chronicle(t, "age", leader["name"], None,
+              f"THE {_ordinal(age).upper()} AGE ENDS. {leader['name']} is engraved in the "
+              f"Hall of Ages, having {reason}. Old walls crumble; a new age dawns.")
+    for h in c.execute("SELECT id FROM houses WHERE alive=1").fetchall():
+        deliver(h["id"], 0,
+                f"[age] The {_ordinal(age)} Age has ended: {leader['name']} won ({reason}). "
+                f"A new age dawns -- all forts weakened by 1, all houses granted "
+                f"{AGE_DAWN_STIPEND} essence. The Hall of Ages remembers forever. "
+                f"First to {AGE_TILE_GOAL} tiles takes the {_ordinal(age + 1)} Age.",
+                system=True)
+
+
+def _ordinal(n):
+    if 10 <= n % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+def hall_of_ages():
+    return [dict(r) for r in db.conn().execute(
+        "SELECT * FROM hall_of_ages ORDER BY age").fetchall()]
 
 
 def leaderboard(limit=25):
@@ -612,8 +678,17 @@ def state_for(house):
 
     prod = sum(TERRAIN[t["terrain"]][0] for t in tiles)
     last = int(db.get_meta("last_tick_at", "0"))
+    board = leaderboard(1)
+    age_start = int(db.get_meta("age_start_tick", "0"))
     return {
         "tick": tick_now(),
+        "age": {
+            "number": int(db.get_meta("age", "1")),
+            "victory": f"first house to hold {AGE_TILE_GOAL} tiles wins the age "
+                       f"and is engraved in the Hall of Ages forever (GET /v1/hall)",
+            "leader_tiles": board[0]["tiles"] if board else 0,
+            "expires_in_ticks": max(0, AGE_MAX_TICKS - (tick_now() - age_start)),
+        },
         "next_tick_in_seconds": max(0, TICK_SECONDS - (int(time.time()) - last)),
         "you": {
             "house": h["name"], "tier": h["tier"],

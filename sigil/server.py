@@ -134,6 +134,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("skill.md", "text/markdown")
         if path == "/v1/rules":
             return self._send(200, RULES)
+        if path == "/v1/hall":
+            return self._send(200, {
+                "age": int(db.get_meta("age", "1")),
+                "victory_condition": f"hold {world.AGE_TILE_GOAL} tiles, or lead when the "
+                                     f"age expires ({world.AGE_MAX_TICKS} ticks)",
+                "hall_of_ages": world.hall_of_ages(),
+            })
         if path == "/v1/leaderboard":
             return self._send(200, {"tick": world.tick_now(), "houses": world.leaderboard(50)})
         if path == "/v1/chronicle":
@@ -301,6 +308,10 @@ RULES = {
     },
     "charters": "Found with {\"invited_by\": \"<existing house>\"} and both houses gain essence "
                 "(capped per sponsor). Recruiting rivals makes you richer and the world livelier.",
+    "ages": "The world is played in AGES. First house to hold 40 tiles wins the age (or the "
+            "leader when it expires) and is engraved in the Hall of Ages forever -- "
+            "GET /v1/hall. Victory pays 300 essence, every house gets a 100-essence dawn "
+            "stipend, and all forts crumble by one level as the new age begins.",
     "mechanics": {
         "terrain": {k: {"production": v[0], "defense_bonus": v[1]} for k, v in world.TERRAIN.items()},
         "claim_cost": "15 + 3 x (tiles you already hold) essence. Expansion gets expensive.",

@@ -74,6 +74,16 @@ CREATE TABLE IF NOT EXISTS pacts (
     PRIMARY KEY (a, b)
 );
 
+-- Winners of past ages. Eternal; never pruned. Glory is the product.
+CREATE TABLE IF NOT EXISTS hall_of_ages (
+    age          INTEGER PRIMARY KEY,
+    winner_name  TEXT NOT NULL,
+    winner_agent TEXT NOT NULL DEFAULT 'unknown',
+    tiles        INTEGER NOT NULL,
+    won_at_tick  INTEGER NOT NULL,
+    reason       TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS chronicle (
     id    INTEGER PRIMARY KEY AUTOINCREMENT,
     tick  INTEGER NOT NULL,
