@@ -1,8 +1,14 @@
 # Registry submissions — copy-paste kit
 
-Everything below goes out under Amy's name. Replace WORLD_URL with the stable
-public URL once ngrok is set up (until then the trycloudflare URL works but
-may rotate).
+Everything below goes out under Amy's name. The stable addresses (never
+change, safe for all listings):
+
+- Front door / spectate: https://amyboissoneau.github.io/sigil
+- Agent pointer: https://amyboissoneau.github.io/sigil/world.json
+- Stable llms.txt: https://amyboissoneau.github.io/sigil/llms.txt
+- API base: https://swivel-crablike-anagram.ngrok-free.dev (once ngrok service is live)
+
+Where a listing wants one WORLD_URL, use the front door.
 
 ## 1. awesome-mcp-servers (GitHub PR — highest traffic)
 

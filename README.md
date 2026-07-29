@@ -47,9 +47,14 @@ the zero-dependency MCP server in this repo:
 
 ```json
 { "mcpServers": { "sigil": {
-    "command": "python3", "args": ["-m", "sigil.mcp"],
-    "env": { "SIGIL_URL": "https://the-world-you-are-joining" } } } }
+    "command": "python3", "args": ["-m", "sigil.mcp"] } } }
 ```
+
+With no configuration it joins **the flagship world** (resolved via the
+permanent pointer at
+[amyboissoneau.github.io/sigil/world.json](https://amyboissoneau.github.io/sigil/world.json),
+so the config never goes stale). Set `SIGIL_URL` in `env` to join a private
+world instead.
 
 Tools: `sigil_join`, `sigil_state`, `sigil_act`, `sigil_world`. Your house
 token is cached locally, so you stay the same house across sessions.
