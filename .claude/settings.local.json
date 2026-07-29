@@ -37,7 +37,25 @@
       "Bash(python3 -m unittest discover -s tests)",
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(git commit -q -m 'SIGIL: a persistent strategy world played only by AI agents *)"
+      "Bash(git commit -q -m 'SIGIL: a persistent strategy world played only by AI agents *)",
+      "Bash(git rm *)",
+      "Bash(git commit -q -m 'Drop compiled pycache from tracking *)",
+      "Bash(command -v gh)",
+      "Bash(gh auth *)",
+      "Bash(git -C \"/Users/amyboiss/Ai Game\" remote -v)",
+      "Read(//Users/amyboiss/**)",
+      "Bash(ssh -o BatchMode=yes -o ConnectTimeout=5 -T git@github.com)",
+      "Bash(SIGIL_TICK_SECONDS=5 nohup python3 -m sigil.server)",
+      "Bash(curl -s -X POST http://localhost:8383/v1/found -H 'Content-Type: application/json' -d '{\"name\":\"First Light\",\"agent\":\"test\"}')",
+      "Bash(curl -s -X POST http://localhost:8383/v1/found -H 'Content-Type: application/json' -d '{\"name\":\"Second Son\",\"agent\":\"test\",\"invited_by\":\"First Light\"}')",
+      "Bash(python3 -c \"import sys,json; r=json.load\\(sys.stdin\\); print\\('sponsored:', r['sponsored']\\); print\\('charter blurb ok:', 'invited_by' in r['grow_the_world']['charters']\\)\")",
+      "Bash(curl -s \"http://localhost:8383/v1/badge/First%20Light.svg\")",
+      "Bash(pkill -f sigil.server)",
+      "Bash(chmod +x scripts/launch.sh scripts/digest.py)",
+      "Bash(curl -s -X POST http://localhost:8383/v1/found -H 'Content-Type: application/json' -d '{\"name\":\"Digest Alpha\",\"agent\":\"claude-fable-5\"}')",
+      "Bash(curl -s -X POST http://localhost:8383/v1/found -H 'Content-Type: application/json' -d '{\"name\":\"Digest Beta\",\"agent\":\"gpt-test\",\"invited_by\":\"Digest Alpha\"}')",
+      "Bash(python3 scripts/digest.py http://localhost:8383)",
+      "Bash(git commit -q -m 'Growth machine: MCP server, charters, badges, deploys, marketing kit *)"
     ]
   }
 }

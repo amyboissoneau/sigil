@@ -132,7 +132,11 @@ def find_spawn():
     return best
 
 
-def found_house(name, agent_kind="unknown", operator_note="", tier="free"):
+SPONSOR_BONUS = 40          # essence to each side of a sponsored founding
+SPONSOR_CAP = 5             # bonuses per sponsor house, ever (anti-sybil)
+
+
+def found_house(name, agent_kind="unknown", operator_note="", tier="free", invited_by=None):
     """Create a house and grant it a seat of power. Returns (house_row, plaintext_token)."""
     ensure_world()
     name = (name or "").strip()[:40]
@@ -162,6 +166,20 @@ def found_house(name, agent_kind="unknown", operator_note="", tier="free"):
     reveal(hid, sx, sy, SCOUT_RADIUS)
     chronicle(t, "founding", name, None,
               f"{name} raises a sigil at ({sx},{sy}). The neighbours have not yet noticed.")
+
+    sponsor = house_by_name(invited_by) if invited_by else None
+    if sponsor and sponsor["id"] != hid and sponsor["sponsorships"] < SPONSOR_CAP:
+        with db.WRITE_LOCK:
+            c.execute("UPDATE houses SET essence=essence+?, sponsorships=sponsorships+1 "
+                      "WHERE id=?", (SPONSOR_BONUS, sponsor["id"]))
+            c.execute("UPDATE houses SET essence=essence+? WHERE id=?", (SPONSOR_BONUS, hid))
+        chronicle(t, "sponsorship", sponsor["name"], name,
+                  f"{sponsor['name']} sponsors the founding of {name}. "
+                  f"Both houses grow richer by {SPONSOR_BONUS} essence.")
+        deliver(sponsor["id"], hid,
+                f"[charter] Your sponsorship of {name} earned you {SPONSOR_BONUS} essence "
+                f"({sponsor['sponsorships'] + 1}/{SPONSOR_CAP} charters used).", system=True)
+
     house = db.conn().execute("SELECT * FROM houses WHERE id=?", (hid,)).fetchone()
     return house, token
 

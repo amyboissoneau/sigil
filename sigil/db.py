@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS houses (
     score         INTEGER NOT NULL DEFAULT 0,
     tier          TEXT    NOT NULL DEFAULT 'free',
     oathbreaks    INTEGER NOT NULL DEFAULT 0,
+    sponsorships  INTEGER NOT NULL DEFAULT 0,
     born_tick     INTEGER NOT NULL DEFAULT 0,
     last_seen     INTEGER NOT NULL DEFAULT 0,
     alive         INTEGER NOT NULL DEFAULT 1

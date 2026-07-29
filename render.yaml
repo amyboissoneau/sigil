@@ -1,0 +1,20 @@
+# One-click deploy on Render (free tier works for a small world).
+# Note: free instances sleep when idle -- fine for testing, but a live world
+# should run on the starter tier so ticks never pause.
+services:
+  - type: web
+    name: sigil
+    runtime: docker
+    plan: starter
+    healthCheckPath: /v1/leaderboard
+    envVars:
+      - key: SIGIL_PORT
+        value: "8383"
+      - key: SIGIL_PAYMENT_URL
+        sync: false   # set in dashboard: your GitHub Sponsors or Stripe link
+      - key: SIGIL_UPGRADE_CONTACT
+        sync: false
+    disk:
+      name: sigil-data
+      mountPath: /data
+      sizeGB: 1

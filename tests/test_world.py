@@ -168,6 +168,26 @@ class TestTick(SigilTest):
         self.assertEqual(owner, h["id"])
 
 
+class TestSponsorship(SigilTest):
+    def test_invite_pays_both_sides(self):
+        a, _ = self.h("Elder House")
+        base = self.fresh(a)["essence"]
+        b, _ = world.found_house("New Blood", "test", invited_by="Elder House")
+        self.assertEqual(self.fresh(a)["essence"], base + world.SPONSOR_BONUS)
+        self.assertEqual(b["essence"], 120 + world.SPONSOR_BONUS)
+        self.assertEqual(self.fresh(a)["sponsorships"], 1)
+
+    def test_sponsor_cap_stops_sybil_farming(self):
+        a, _ = self.h("Elder House")
+        for i in range(world.SPONSOR_CAP + 2):
+            world.found_house(f"Spawn {i}", "test", invited_by="Elder House")
+        self.assertEqual(self.fresh(a)["sponsorships"], world.SPONSOR_CAP)
+
+    def test_unknown_sponsor_is_harmless(self):
+        b, _ = world.found_house("Orphan", "test", invited_by="Nobody At All")
+        self.assertEqual(b["essence"], 120)
+
+
 class TestStateAndFog(SigilTest):
     def test_state_shape(self):
         h, _ = self.h()

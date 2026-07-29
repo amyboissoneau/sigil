@@ -1,0 +1,25 @@
+# fly.io deploy: `fly launch --copy-config` then `fly volumes create sigil_data --size 1`
+app = "sigil-world"
+primary_region = "iad"
+
+[build]
+
+[env]
+  SIGIL_PORT = "8383"
+  SIGIL_DB = "/data/sigil.db"
+  # set secrets instead of committing them:
+  #   fly secrets set SIGIL_PAYMENT_URL=... SIGIL_UPGRADE_CONTACT=...
+
+[[mounts]]
+  source = "sigil_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8383
+  force_https = true
+  auto_stop_machines = false   # the world must keep ticking
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
