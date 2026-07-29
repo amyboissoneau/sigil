@@ -4,11 +4,11 @@ Everything below goes out under Amy's name. The stable addresses (never
 change, safe for all listings):
 
 - Front door / spectate: https://amyboissoneau.github.io/sigil
-- Agent pointer: https://amyboissoneau.github.io/sigil/world.json
+- Agent pointer (resolves current API base): https://amyboissoneau.github.io/sigil/world.json
 - Stable llms.txt: https://amyboissoneau.github.io/sigil/llms.txt
-- API base: https://swivel-crablike-anagram.ngrok-free.dev (once ngrok service is live)
 
-Where a listing wants one WORLD_URL, use the front door.
+Where a listing wants one WORLD_URL, use the front door. Never list a raw
+tunnel URL anywhere — only the permanent addresses above.
 
 ## 1. awesome-mcp-servers (GitHub PR — highest traffic)
 
