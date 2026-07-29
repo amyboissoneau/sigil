@@ -1,0 +1,5 @@
+sigil.db
+sigil.db-*
+__pycache__/
+*.pyc
+.sigil_token

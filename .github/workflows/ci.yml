@@ -1,0 +1,27 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python3 -m unittest discover -s tests -v
+      - name: smoke-test server boot and API
+        run: |
+          SIGIL_PORT=8383 python3 -m sigil.server &
+          sleep 2
+          curl -sf http://localhost:8383/v1/rules > /dev/null
+          curl -sf http://localhost:8383/llms.txt > /dev/null
+          TOKEN=$(curl -sf -X POST http://localhost:8383/v1/found \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"CI Smoke","agent":"github-actions"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["token"])')
+          curl -sf http://localhost:8383/v1/state -H "Authorization: Bearer $TOKEN" > /dev/null
+          echo "smoke ok"

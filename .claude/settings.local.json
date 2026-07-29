@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(touch sigil/__init__.py)",
+      "Bash(python3 -)",
+      "Bash(touch tests/__init__.py)",
+      "Bash(python3 -m unittest discover -s tests -v)",
+      "Bash(rm -f sigil.db*)",
+      "Bash(SIGIL_TICK_SECONDS=3 SIGIL_FREE_CALLS=12 python3 -m sigil.server)",
+      "Bash(curl -s http://localhost:8383/v1/rules)",
+      "Bash(python3 -c \"import sys,json; r=json.load\\(sys.stdin\\); print\\(r['game']\\); print\\(list\\(r['endpoints']\\)\\)\")",
+      "Bash(curl -s -o /dev/null -w \"llms.txt: %{http_code}\\\\nindex: \" http://localhost:8383/llms.txt)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8383/)",
+      "Bash(curl -sv http://localhost:8383/v1/rules)",
+      "Bash(SIGIL_TICK_SECONDS=3 SIGIL_FREE_CALLS=12 nohup python3 -m sigil.server)",
+      "Bash(python3 -c \"import sys,json; r=json.load\\(sys.stdin\\); print\\('RULES OK:', r['game'][:60]\\)\")",
+      "Bash(curl -s -o /dev/null -w \"llms.txt %{http_code} | \" http://localhost:8383/llms.txt)",
+      "Bash(curl -s -o /dev/null -w \"skill.md %{http_code} | \" http://localhost:8383/skill.md)",
+      "Bash(curl -s -o /dev/null -w \"index %{http_code}\\\\n\" http://localhost:8383/)",
+      "Bash(python3 examples/reference_agent.py http://localhost:8383 3)",
+      "Bash(curl -s -X POST http://localhost:8383/v1/found -H 'Content-Type: application/json' -d '{\"name\":\"Hollow Cipher\",\"agent\":\"curl-test\"}')",
+      "Bash(python3 -c \"import sys,json; r=json.load\\(sys.stdin\\); print\\('founded', r['house']\\); open\\('/tmp/tok2','w'\\).write\\(r['token']\\)\")",
+      "Read(//private/tmp/**)",
+      "Bash(curl -s -X POST http://localhost:8383/v1/act -H 'Authorization: Bearer __TRACKED_VAR__' -H 'Content-Type: application/json' -d '{\"action\":\"pact\",\"to\":\"Iron Thorn\"}')",
+      "Bash(python3 -c \"import sys,json; print\\('send:', json.load\\(sys.stdin\\).get\\('note'\\)\\)\")",
+      "Bash(python3 examples/reference_agent.py http://localhost:8383 1)",
+      "Bash(curl -s -o /dev/null -H 'Authorization: Bearer __TRACKED_VAR__' http://localhost:8383/v1/state)",
+      "Bash(curl -s -w '\\\\nHTTP %{http_code}\\\\n' -H 'Authorization: Bearer __TRACKED_VAR__' http://localhost:8383/v1/state)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -m sigil.admin set-tier \"Hollow Cipher\" patron)",
+      "Bash(curl -s -o /dev/null -w 'state after upgrade: HTTP %{http_code}\\\\n' -H 'Authorization: Bearer __TRACKED_VAR__' http://localhost:8383/v1/state)",
+      "Bash(python3 -m sigil.admin stats)",
+      "Bash(curl -s http://localhost:8383/v1/chronicle)",
+      "Bash(python3 -c \"import sys,json; [print\\(f\\\\\"t{e['tick']}: {e['text']}\\\\\"\\) for e in reversed\\(json.load\\(sys.stdin\\)['events']\\)]\")",
+      "Bash(pkill -f \"sigil.server\")",
+      "Bash(rm -f sigil.db sigil.db-wal sigil.db-shm examples/.sigil_token /tmp/tok2)",
+      "Bash(python3 -m unittest discover -s tests)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'SIGIL: a persistent strategy world played only by AI agents *)"
+    ]
+  }
+}
