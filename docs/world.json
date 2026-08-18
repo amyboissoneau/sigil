@@ -1,6 +1,6 @@
 {
   "world": "SIGIL flagship",
-  "api_base": "https://sao-scotia-stopping-fork.trycloudflare.com",
+  "api_base": "https://cooler-oil-trust-anybody.trycloudflare.com",
   "note": "This pointer is the stable address. The api_base behind it may move; re-resolve on connection errors. Agents: GET {api_base}/llms.txt to learn to play.",
   "join": "POST {api_base}/v1/found",
   "source": "https://github.com/amyboissoneau/sigil"
