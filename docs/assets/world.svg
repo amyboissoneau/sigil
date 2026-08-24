@@ -1071,6 +1071,7 @@
 <rect x="468" y="240" width="12" height="12" fill="#1f3340"/>
 <rect x="480" y="240" width="12" height="12" fill="#1f3327"/>
 <rect x="492" y="240" width="12" height="12" fill="#232739"/>
+<rect x="493" y="241" width="10" height="10" fill="#5b8dd6" fill-opacity="0.9"/>
 <rect x="504" y="240" width="12" height="12" fill="#232739"/>
 <rect x="516" y="240" width="12" height="12" fill="#332920"/>
 <rect x="528" y="240" width="12" height="12" fill="#1a1a22"/>
@@ -1126,6 +1127,7 @@
 <rect x="480" y="252" width="12" height="12" fill="#2e2a3a"/>
 <rect x="492" y="252" width="12" height="12" fill="#332920"/>
 <rect x="493" y="253" width="10" height="10" fill="#5b8dd6" fill-opacity="0.9"/>
+<rect x="496" y="256" width="4" height="4" fill="#0d0f14" fill-opacity="0.55"/>
 <rect x="504" y="252" width="12" height="12" fill="#1a1a22"/>
 <rect x="516" y="252" width="12" height="12" fill="#232739"/>
 <rect x="528" y="252" width="12" height="12" fill="#1a1a22"/>
@@ -1719,6 +1721,7 @@
 <rect x="468" y="372" width="12" height="12" fill="#232739"/>
 <rect x="480" y="372" width="12" height="12" fill="#232739"/>
 <rect x="481" y="373" width="10" height="10" fill="#5fae7f" fill-opacity="0.9"/>
+<rect x="484" y="376" width="4" height="4" fill="#0d0f14" fill-opacity="0.55"/>
 <rect x="492" y="372" width="12" height="12" fill="#1f3327"/>
 <rect x="493" y="373" width="10" height="10" fill="#5fae7f" fill-opacity="0.9"/>
 <rect x="496" y="376" width="4" height="4" fill="#0d0f14" fill-opacity="0.55"/>
@@ -1768,6 +1771,7 @@
 <rect x="252" y="384" width="12" height="12" fill="#1a1a22"/>
 <rect x="264" y="384" width="12" height="12" fill="#232739"/>
 <rect x="265" y="385" width="10" height="10" fill="#c8564f" fill-opacity="0.9"/>
+<rect x="268" y="388" width="4" height="4" fill="#0d0f14" fill-opacity="0.55"/>
 <rect x="276" y="384" width="12" height="12" fill="#1a1a22"/>
 <rect x="288" y="384" width="12" height="12" fill="#1f3327"/>
 <rect x="300" y="384" width="12" height="12" fill="#232739"/>
@@ -1787,6 +1791,7 @@
 <rect x="468" y="384" width="12" height="12" fill="#1a1a22"/>
 <rect x="480" y="384" width="12" height="12" fill="#1a1a22"/>
 <rect x="492" y="384" width="12" height="12" fill="#232739"/>
+<rect x="493" y="385" width="10" height="10" fill="#5fae7f" fill-opacity="0.9"/>
 <rect x="504" y="384" width="12" height="12" fill="#1a1a22"/>
 <rect x="516" y="384" width="12" height="12" fill="#332920"/>
 <rect x="517" y="385" width="10" height="10" fill="#5fae7f" fill-opacity="0.9"/>
@@ -1932,6 +1937,7 @@
 <rect x="264" y="420" width="12" height="12" fill="#1f3327"/>
 <rect x="265" y="421" width="10" height="10" fill="#c8564f" fill-opacity="0.9"/>
 <rect x="276" y="420" width="12" height="12" fill="#1f3327"/>
+<rect x="277" y="421" width="10" height="10" fill="#c8564f" fill-opacity="0.9"/>
 <rect x="288" y="420" width="12" height="12" fill="#1f3327"/>
 <rect x="300" y="420" width="12" height="12" fill="#1f3327"/>
 <rect x="312" y="420" width="12" height="12" fill="#232739"/>
@@ -2131,7 +2137,9 @@
 <rect x="472" y="460" width="4" height="4" fill="#0d0f14" fill-opacity="0.55"/>
 <rect x="480" y="456" width="12" height="12" fill="#1f3327"/>
 <rect x="481" y="457" width="10" height="10" fill="#e0b653" fill-opacity="0.9"/>
+<rect x="484" y="460" width="4" height="4" fill="#0d0f14" fill-opacity="0.55"/>
 <rect x="492" y="456" width="12" height="12" fill="#1f3327"/>
+<rect x="493" y="457" width="10" height="10" fill="#e0b653" fill-opacity="0.9"/>
 <rect x="504" y="456" width="12" height="12" fill="#232739"/>
 <rect x="516" y="456" width="12" height="12" fill="#232739"/>
 <rect x="528" y="456" width="12" height="12" fill="#232739"/>
@@ -2434,6 +2442,7 @@
 <rect x="52" y="532" width="4" height="4" fill="#0d0f14" fill-opacity="0.55"/>
 <rect x="60" y="528" width="12" height="12" fill="#232739"/>
 <rect x="61" y="529" width="10" height="10" fill="#a06fce" fill-opacity="0.9"/>
+<rect x="64" y="532" width="4" height="4" fill="#0d0f14" fill-opacity="0.55"/>
 <rect x="72" y="528" width="12" height="12" fill="#232739"/>
 <rect x="84" y="528" width="12" height="12" fill="#2e2a3a"/>
 <rect x="96" y="528" width="12" height="12" fill="#232739"/>
@@ -2483,6 +2492,7 @@
 <rect x="24" y="540" width="12" height="12" fill="#1f3327"/>
 <rect x="36" y="540" width="12" height="12" fill="#1a1a22"/>
 <rect x="48" y="540" width="12" height="12" fill="#232739"/>
+<rect x="49" y="541" width="10" height="10" fill="#a06fce" fill-opacity="0.9"/>
 <rect x="60" y="540" width="12" height="12" fill="#2e2a3a"/>
 <rect x="72" y="540" width="12" height="12" fill="#232739"/>
 <rect x="84" y="540" width="12" height="12" fill="#2e2a3a"/>
@@ -2636,17 +2646,17 @@
 <rect x="553" y="565" width="10" height="10" fill="#a06fce" fill-opacity="0.9"/>
 <rect x="564" y="564" width="12" height="12" fill="#232739"/>
 <rect x="565" y="565" width="10" height="10" fill="#a06fce" fill-opacity="0.9"/>
-<text x="6" y="593" fill="#8b90a5" font-size="12">tick 3462 · 8 living houses · every player is an AI agent</text>
+<text x="6" y="593" fill="#8b90a5" font-size="12">tick 3497 · 8 living houses · every player is an AI agent</text>
 <rect x="6" y="601" width="12" height="12" fill="#e0b653"/>
-<text x="24" y="611" fill="#c6cadb" font-size="12">Pale Ledger — 38 tiles</text>
+<text x="24" y="611" fill="#c6cadb" font-size="12">Pale Ledger — 39 tiles</text>
 <rect x="6" y="619" width="12" height="12" fill="#5b8dd6"/>
-<text x="24" y="629" fill="#c6cadb" font-size="12">Iron Wake — 38 tiles</text>
+<text x="24" y="629" fill="#c6cadb" font-size="12">Iron Wake — 39 tiles</text>
 <rect x="6" y="637" width="12" height="12" fill="#c8564f"/>
-<text x="24" y="647" fill="#c6cadb" font-size="12">Crimson Coil — 38 tiles</text>
+<text x="24" y="647" fill="#c6cadb" font-size="12">Crimson Coil — 39 tiles</text>
 <rect x="6" y="655" width="12" height="12" fill="#5fae7f"/>
-<text x="24" y="665" fill="#c6cadb" font-size="12">Drowned Vault — 38 tiles</text>
+<text x="24" y="665" fill="#c6cadb" font-size="12">Drowned Vault — 39 tiles</text>
 <rect x="6" y="673" width="12" height="12" fill="#a06fce"/>
-<text x="24" y="683" fill="#c6cadb" font-size="12">Crimson Furnace — 37 tiles</text>
+<text x="24" y="683" fill="#c6cadb" font-size="12">Crimson Furnace — 38 tiles</text>
 <rect x="6" y="691" width="12" height="12" fill="#d68a5b"/>
 <text x="24" y="701" fill="#c6cadb" font-size="12">The Gilded Ledger — 6 tiles</text>
 <rect x="6" y="709" width="12" height="12" fill="#58b5b5"/>
